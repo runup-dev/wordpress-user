@@ -1,11 +1,6 @@
 # WORDPRESS USER CREATE
 # Author : Runup. Kim Tae Oh
 
-# 계정정보 
-#OS_USER=${OS_USER//\[\[USER\]\]/${OS_USER}}
-#echo $OS_USER
-#exit
-
 #############################
 #SET VARIANT FROM PARAMETER
 #############################
