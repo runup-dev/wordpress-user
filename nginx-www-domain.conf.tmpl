@@ -1,0 +1,37 @@
+server {
+    autoindex_localtime on;
+    include custom.conf/*.conf;
+
+    server_name  [[DOMAIN]];
+    access_log   /var/log/nginx/[[DOMAIN]].log;
+    error_log    /var/log/nginx/[[DOMAIN]].error.log;
+
+    #  note that these lines are originally from the "location /" block
+    root   /home/[[USER]]/www/wordpress;
+
+    # wp address type
+    location /{
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    #vhost_traffic_status_limit_traffic in:10M;
+    #vhost_traffic_status_limit_traffic out:1M;
+
+    error_page 404 /404.html;
+    location = /404.html {
+      root /usr/share/nginx/html;
+    }
+
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+      root /usr/share/nginx/html;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_pass unix:/var/run/php-fpm/php-fpm-[[USER]].sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }[[SSL]]
+}
