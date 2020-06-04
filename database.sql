@@ -1,5 +1,0 @@
-CREATE DATABASE IF NOT EXISTS wp_shop;
-CREATE USER IF NOT EXISTS shop_www@localhost;
-SET PASSWORD FOR shop_www@localhost= PASSWORD("shop@#1040");
-GRANT ALL PRIVILEGES ON wp_shop.* TO shop_www@localhost IDENTIFIED BY "shop@#1040";
-FLUSH PRIVILEGES;

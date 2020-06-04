@@ -1,5 +1,0 @@
-OS USER : portfolio
-DB NAME : wp_portfolio
-DB USER : portfolio_www
-DB PASS : portfolio@#9070
-PRIVATE_KEY_PASS : portfolio@#9070
