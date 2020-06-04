@@ -290,6 +290,11 @@ echo "######################"
 
 curl -i https://${DOMAIN}
 
+#### WP CORE 
+cd /home/${OS_USER}/www/wordpress
+wp core download --allow-root --force
+wp config create --dbname=${DB_NAME} --dbuser=${DB_USER} --dbpass=${DB_PASS} --allow-root
+
 ###########################
 # CREATE PRIVATE KEY
 ###########################
