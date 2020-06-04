@@ -1,4 +1,4 @@
-# WORDPRESS USER CREATE
+# 워드프레스 호스팅용 계정 세팅
 # Author : Runup. Kim Tae Oh
 
 #############################
