@@ -1,267 +1,336 @@
-##SET CLIENT
+# WORDPRESS USER CREATE
+# Author : Runup. Kim Tae Oh
 
-##SET VARIANT FROM PARAMETER
-user=$1
-domain=$2
+# 계정정보 
+#OS_USER=${OS_USER//\[\[USER\]\]/${OS_USER}}
+#echo $OS_USER
+#exit
+
+#############################
+#SET VARIANT FROM PARAMETER
+#############################
+
+while getopts u:d:p: option 
+do 
+ case "${option}" 
+ in 
+ u) 
+    CREATE_USER=${OPTARG}
+ ;; 
+ d) 
+    DOMAIN=${OPTARG}
+ ;; 
+ p) 
+    PASS=${OPTARG}
+ ;;
+ esac 
+done 
+ 
 
 ## USER CHECK
-if [ -z $user ]
+if [ -z $CREATE_USER ]
 then
- echo "PLESE INPUT USER"
+ echo "UserName is Required Option Name is -u"
  exit
 fi
 
 ## DOMAIN CHECK
-if [ -z $domain ]
+if [ -z $DOMAIN ]
 then
- echo "PLESE INPUT DOMAIN"
+ echo "Domain is Required Option Name is -d"
  exit
 fi
 
-## USER CHECK
-homeDir="/home/${user}"
-if [ -d "${homeDir}" ]
+## PASS CHECK 
+if [ -z $PASS ]
 then
+ echo "Domain is Required Option Name is -p"
+ exit
+fi
 
-  read -r -p "\"${user}\" is already go ahead? [Y/n] " input
-  
-  case $input in
-    [yY][eE][sS]|[yY])
-  ;;
-    [nN][oO]|[nN])
-  echo "Stop Shell Script"
+## 템플릿에 맞게 조정
+source account.tmpl
+
+## OS_USER
+OS_USER=${OS_USER//\[\[USER\]\]/${CREATE_USER}}
+OS_USER=${OS_USER//\[\[PASS\]\]/${PASS}}
+
+## DB_NAME
+DB_NAME=${DB_NAME//\[\[USER\]\]/${CREATE_USER}}
+DB_NAME=${DB_NAME//\[\[PASS\]\]/${PASS}}
+
+## DB_USER
+DB_USER=${DB_USER//\[\[USER\]\]/${CREATE_USER}}
+DB_USER=${DB_USER//\[\[PASS\]\]/${PASS}}
+
+## DB_PASS
+DB_PASS=${DB_PASS//\[\[USER\]\]/${CREATE_USER}}
+DB_PASS=${DB_PASS//\[\[PASS\]\]/${PASS}}
+
+## PRIVATEKEY_PASS
+PRIVATEKEY_PASS=${DB_PASS//\[\[USER\]\]/${CREATE_USER}}
+PRIVATEKEY_PASS=${DB_PASS//\[\[PASS\]\]/${PASS}}
+
+
+## 정보기록 
+rm -f ./info.txt
+touch info.txt
+echo "OS USER : ${OS_USER}" >> info.txt
+echo "DB NAME : ${DB_NAME}" >> info.txt
+echo "DB USER : ${DB_USER}" >> info.txt
+echo "DB PASS : ${DB_PASS}" >> info.txt
+echo "PRIVATE_KEY_PASS : ${PRIVATEKEY_PASS}" >> info.txt
+
+## DOMAIN VALIDATION
+if [ ${DOMAIN:0:4} == "http" -o ${DOMAIN:0:5} == "https" ]
+then
+  echo "Please Remove http or https Protocol"
   exit
-       ;;
-    *)
-  echo "Invalid input..."
-  exit 1
- ;;
- esac
 fi
 
 
-## CREATE USER
-userdir=/home/$user
-if [ ! -d "${userdir}" ]
-then
-  useradd $user
-  chmod 755 /home/$user/
-  chmod 755 /home/$user/www
-fi
 
-## SSH KEY GENERATE
-if [ ! -f "/home/${user}/.ssh/authorized_keys" ]
-then 
-
-  #mkdir /home/${user}/.ssh
-  #chown ${user}:${user} /home/${user}/.ssh
-  #chmod 700 /home/${user}/.ssh
-  ssh-keygen -t rsa -b 4096 -f /home/${user}/.ssh/id_rsa -P "Runup@)9070"
-  touch /home/${user}/.ssh/authorized_keys
-  chmod 600 /home/${user}/.ssh/authorized_keys
-  cat /home/${user}/.ssh/id_rsa.pub > /home/${user}/.ssh/authorized_keys
-  chown ${user}:${user} /home/${user}/.ssh/authorized_keys
-
-fi
-
-if [ -f "/home/${user}/.ssh/id_rsa.pub" -o -f "/home/${user}/.ssh/id_rsa" ] 
-then
-
-  read -r -p "keyFile Download Please [Y/n] " input
-
-  case $input in
-    [yY][eE][sS]|[yY])
-       if [ -f "/home/${user}/.ssh/id_rsa.pub" ]
-       then
-         rm -f /home/${user}/.ssh/id_rsa.pub
-       fi
-       
-       if [ -f "/home/${user}/.ssh/id_rsa" ]
-       then 
-         rm -f /home/${user}/.ssh/id_rsa
-       fi
-    ;;
-    [nN][oO]|[nN])
-       echo "Stop Shell Script"
-       exit
-    ;;
-    *)
-  echo "Invalid input..."
-  exit 1
-  ;;
- esac
+## USER EXISTS CHECK
+USER_EXISTS=false
+if [ $(getent passwd $OS_USER) ] ; then
+	USER_EXISTS=true
 fi
 
 
-## CREATE QUAOTA
+## SSL CHECK 
+SSL_EXISTS=$(sudo [ -d "/etc/letsencrypt/live/${DOMAIN}/" ] && echo "true")
+if [ -z ${SSL_EXISTS} ] ; then
+	SSL_EXISTS=false
+fi
+
+
+###########################
+# CREATE USER
+###########################
+
+
+## 유저생성 
+if [ ! ${USER_EXISTS} == "true" ] ; then
+  sudo useradd $OS_USER
+else
+
+echo "이미 유저가 존재합니다 계속하시겠어요 ?"
+while :
+do
+read -rp "Y or N) " cf
+case $cf in
+        [yY])
+                break
+        ;;
+
+        [nN])
+		echo "취소하셨습니다"
+                exit
+        ;;
+
+        *)
+                echo "Please Input Yes or No !!!"
+        ;;
+esac
+done
+
+fi
+
+
+## MAKE DIRECTORY & PERMITION
+sudo mkdir -p /home/${OS_USER}/www
+sudo mkdir -p /home/${OS_USER}/www/wordpress
+sudo chmod 755 /home/${OS_USER}
+sudo chmod 755 /home/${OS_USER}/www
+sudo chmod 755 /home/${OS_USER}/www/wordpress
+sudo cp ./index.php.tmpl /home/${OS_USER}/www/wordpress/index.php
+sudo chown -R ${OS_USER}:${OS_USER} /home/${OS_USER}
+sudo chmod 644 /home/${OS_USER}/www/wordpress/index.php
+
+
 ## TODO 
+## 호스팅 용량 제한
+## 트래픽 용량 제한
 
+## OPCACHE DISABLED WP-CONFIG
+blacklist=/etc/php.d/opcache-default.blacklist
+blacklist_tmp=opcache-default.blacklist
+buffer="/home/${OS_USER}/www/wordpress/wp-config.php"
+is_blacklist=$(cat ${blacklist} | grep ${buffer})
 
-## CREATE DATABASE FILE
-sql=/root/setClient.sql
-
-var="CREATE DATABASE IF NOT EXISTS wp_${user};
-CREATE USER IF NOT EXISTS ${user}_www@localhost;
-SET PASSWORD FOR ${user}_www@localhost= PASSWORD(\"${user}@6951\");
-GRANT ALL PRIVILEGES ON wp_${user}.* TO ${user}_www@localhost IDENTIFIED BY \"${user}@6951\";
-FLUSH PRIVILEGES;"
-
-## OVERWRITE SQL
-if [ -f "$sql" ] 
-then
-  echo "$var" > "$sql";
+if [ -z $is_blacklist ] ; then
+	sudo cp ${blacklist} ${blacklist_tmp}
+	sudo chown $USER:$USER ${blacklist_tmp}
+	sudo echo "$buffer" >> ${blacklist_tmp}
+	sudo mv ${blacklist_tmp} ${blacklist}
+	sudo chown root:root ${blacklist}
 fi
 
-## CREATE PHP-FPM POOL
-pool=/etc/php-fpm.d/${user}.conf
 
-var="[${user}]
-listen = /var/run/php-fpm/php-fpm-${user}.sock
-user = ${user}
-group = ${user}
-listen.owner = nginx
-listen.group = nginx
-request_slowlog_timeout = 5s
-slowlog = /var/log/php-fpm/slowlog-${user}.log
-listen.allowed_clients = 127.0.0.1
-pm = dynamic
-pm.max_children = 4
-pm.start_servers = 2
-pm.min_spare_servers = 1
-pm.max_spare_servers = 3
-pm.max_requests = 200
-listen.backlog = -1
-pm.status_path = /status
-request_terminate_timeout = 120s
-rlimit_files = 131072
-rlimit_core = unlimited
-catch_workers_output = yes
-env[HOSTNAME] = \$HOSTNAME
-env[TMP] = /tmp
-env[TMPDIR] = /tmp
-env[TEMP] = /tmp"
-
-echo "$var" > "$pool";
-
-systemctl restart php-fpm 
+########################### 
+# CREATE DATABASE & GRANT 
+###########################
+echo "CREATE DATABASE"
+buffer=`cat database.sql.tmpl`
+buffer=${buffer//\[\[DB_NAME\]\]/${DB_NAME}}
+buffer=${buffer//\[\[USER\]\]/${DB_USER}}
+buffer=${buffer//\[\[PASSWD\]\]/${DB_PASS}}
+echo "$buffer" > "database.sql"
+mysql -u root -p < database.sql
+rm -f ./database.sql
 
 
-## CREATE VHOST CONFIG
-vhost=/etc/nginx/conf.d/${domain}.conf
+
+###########################
+# CREATE PHP-FPM
+###########################
+pool=/etc/php-fpm.d/${OS_USER}.conf
+pool_tmp=${OS_USER}_pool.conf
+rm -f ${pool_tmp}
+buffer=`cat php-fpm-pool.conf.tmpl`
+buffer=${buffer//\[\[USER\]\]/${OS_USER}}
+
+## FILE WRITE
+echo "${buffer}" > ${pool_tmp}
+
+## MOVE
+sudo mv ${pool_tmp} ${pool}
+sudo chown root:root ${pool}
+sudo systemctl restart php-fpm
 
 
-if [ ${domain:0:3} == "www" ]
+############################
+# CREATE NGINX-CONFIG
+############################
+
+vhost=/etc/nginx/conf.d/${DOMAIN}.conf
+vhost_tmp=${OS_USER}_vhost.conf
+rm -f ${vhost_tmp}
+
+## ROOT DOMAIN CONFIG
+if [ ${DOMAIN:0:3} == "www" ]
 then
+    buffer=`cat nginx-root-domain.conf.tmpl`
+    buffer=${buffer//\[\[USER\]\]/${OS_USER}}
+    buffer=${buffer//\[\[DOMAIN\]\]/${DOMAIN}}
 
-root_var="server {
+    ## ADD SSL
+    if [ ${SSL_EXISTS} == "true" ] ; then
+	echo "ADD SSL"
+    fi
+fi
+
+## WWW DOMAIN CONFIG 
+buffer=`cat nginx-service-domain.conf.tmpl`
+buffer=${buffer//\[\[USER\]\]/${OS_USER}}
+buffer=${buffer//\[\[DOMAIN\]\]/${DOMAIN}}
+
+
+## ADD SSL
+if [ ${SSL_EXISTS} == "true" ] ; then
+ssl_script="
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+";
+
+redirect_script="
+server {
+    if (\$host = ${DOMAIN}) {
+        return 301 https://\$host\$request_uri;
+    } # managed by Certbot
+
+
     listen 80;
-    server_name ${domain:4};
-    return 301 \$scheme://${domain}\$request_uri;
+    server_name  ${DOMAIN};
+    return 404; # managed by Certbot
+
 }
 "
 
-fi
+buffer=${buffer//\[\[SSL\]\]/${ssl_script}}
+buffer="${buffer} ${redirect_script}"
 
-
-
-www_var="server {
-    autoindex_localtime on;
-    include rocket-nginx/default.conf;
-    
-    listen 80;
-    server_name  ${domain};
-    access_log   /var/log/nginx/${domain}.log;
-    error_log    /var/log/nginx/${domain}.error.log;
-
-    #  note that these lines are originally from the \"location /\" block
-    root   /home/${user}/www/wordpress;
-    #root /usr/share/nginx/html;    
-
-    # wp address type
-    location /{
-        try_files \$uri \$uri/ /index.php?\$args;
-    }
-
-    #vhost_traffic_status_limit_traffic in:10M;
-    #vhost_traffic_status_limit_traffic out:1M;
-
-    error_page 404 /404.html;
-    location = /404.html {
-      root /usr/share/nginx/html;
-    }
-
-    error_page 500 502 503 504 /50x.html;
-    location = /50x.html {
-      root /usr/share/nginx/html;
-    }
-
-    location ~ \.php\$ {
-        try_files \$uri =404;
-        fastcgi_pass unix:/var/run/php-fpm/php-fpm-${user}.sock;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-}"
-
-
-## OVERWRITE
-if [ -n "${root_var}" ]
-then
-  echo "${root_var}${www_var}" > "$vhost";
 else
-  echo "$www_var" > "$vhost";
-fi
-
-## RESTART NGINX
-systemctl restart nginx
-
-
-## LETS ENCRYPT 
-echo "LETS ENCRYPT"
-if [ -n "${root_var}" ]
-then
-  /etc/letsencrypt/certbot-auto --nginx -d ${domain:4} -d ${domain}
-else
-  /etc/letsencrypt/certbot-auto --nginx -d ${domain}
+buffer=${buffer//\[\[SSL\]\]/}
 fi
 
 
-## INSTALL WORDPRESS
-cd /home/${user}/www
 
-if [ ! -f "/home/${user}/www/latest-ko_KR.tar.gz" ]
-then
-  wget https://ko.wordpress.org/latest-ko_KR.tar.gz
+## FILE WRITE
+echo "${buffer}" > ${vhost_tmp}
+
+## MOVE
+sudo mv ${vhost_tmp} ${vhost}
+sudo chown root:root ${vhost}
+sudo systemctl restart nginx
+
+
+###########################
+# CREATE LET'S ENCRYPT
+###########################
+
+
+if [ ! ${SSL_EXISTS} == "true" ] ; then
+	echo "LETS ENCRYPT"
+	if [ -n "${root_var}" ]
+	then
+	  sudo certbot-auto --nginx -d ${DOMAIN:4} -d ${DOMAIN}
+	else
+	  sudo certbot-auto --nginx -d ${DOMAIN}
+	fi
+
 fi
 
-tar -xzf /home/${user}/www/latest-ko_KR.tar.gz
+###########################
+# TEST WEB CONNECT
+###########################
 
-## DATABASE IMPORT
-echo "DATABASE IMPORT"
-mysql -u root -p < /root/setClient.sql
+echo "######################"
+echo "Website Connect Result"
+echo "######################"
 
+curl -i https://${DOMAIN}
 
-## THEME INSTALL
-unzip -o /usr/share/wp-library/astra.2.0.1.zip -d /home/${user}/www/wordpress/wp-content/themes
-unzip -o /usr/share/wp-library/astra-child.zip -d /home/${user}/www/wordpress/wp-content/themes
+###########################
+# CREATE PRIVATE KEY
+###########################
+ip=$(sudo hostname -I | sed -e 's/^ *//g' -e 's/ *$//g')
+host=$(sudo hostname)
 
-## PLUGIN INSTALL
-unzip -o /usr/share/wp-library/astra-addon-plugin-2.0.0.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/astra-portfolio-1.7.2.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/astra-premium-sites-1.3.19.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/ultimate-elementor-1.15.0.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/elementor.2.7.1.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/elementor-pro-2.6.2.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/admin-menu-editor-pro.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/ame-branding-add-on.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/wp-toolbar-editor.zip -d /home/[${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/wordpress-seo.11.8.zip -d /home/[${uesr}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/wp-rocket_3.3.6.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/envato-elements.1.1.3.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/iwp-client.zip -d /home/${user}/www/wordpress/wp-content/plugins
-unzip -o /usr/share/wp-library/wordpress-seo.11.8.zip -d /home/${user}/www/wordpress/wp-content/plugins
+ssh-keygen -t rsa -b 4096 -f /tmp/ssh-key-${OS_USER} -P ${PRIVATEKEY_PASS}
+sudo mkdir -p /home/${OS_USER}/.ssh
+sudo chmod 700 /home/${OS_USER}/.ssh
+sudo mv /tmp/ssh-key-${OS_USER}.pub /home/${OS_USER}/.ssh/authorized_keys
+sudo chmod 600 /home/${OS_USER}/.ssh/authorized_keys
+sudo chown -R ${OS_USER}:${OS_USER} /home/${OS_USER}/.ssh
 
-chmod 2755 /home/${user}/www/wordpress
-chown -R ${user}:${user} /home/${user}/www/wordpress
+# DOWNLOAD CONFIRM
+ip=$(sudo hostname -I | sed -e 's/^ *//g' -e 's/ *$//g')
+echo "scp ${USER}@${ip}:/tmp/ssh-key-${OS_USER} {Your Location}"
+echo "위 소스를 참고해서 개인키를 안전한 장소에 보관하세요"
+
+while :
+do
+read -rp "Y or N) " cf
+case $cf in
+        [yY])
+                rm -f /tmp/ssh-key-${OS_USER}
+                echo "Good!! please login ${OS_USER} And Setup"
+                break
+        ;;
+
+        [nN])
+                echo "exit"
+                exit
+        ;;
+
+        *)
+                echo "Please Input Yes or No !!!"
+        ;;
+esac
+done
+

@@ -1,0 +1,57 @@
+server {
+    autoindex_localtime on;
+    include custom.conf/*.conf;
+    server_name  shop.run-up.co.kr;
+    access_log   /var/log/nginx/shop.run-up.co.kr.log;
+    error_log    /var/log/nginx/shop.run-up.co.kr.error.log;
+
+    #  note that these lines are originally from the "location /" block
+    root   /home/shop/www/wordpress;
+
+    # wp address type
+    location /{
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    #vhost_traffic_status_limit_traffic in:10M;
+    #vhost_traffic_status_limit_traffic out:1M;
+
+    error_page 404 /404.html;
+    location = /404.html {
+      root /usr/share/nginx/html;
+    }
+
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+      root /usr/share/nginx/html;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_pass unix:/var/run/php-fpm/php-fpm-shop.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/shop.run-up.co.kr/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/shop.run-up.co.kr/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+server {
+    if ($host = shop.run-up.co.kr) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+
+    listen 80;
+    server_name  shop.run-up.co.kr;
+    return 404; # managed by Certbot
+
+
+}

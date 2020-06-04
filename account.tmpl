@@ -1,0 +1,12 @@
+# 계정템플릿
+# 스크립트 실행시 인자가 아래와 같이 매핑되어 반환합니다 
+# 다른 패턴을 사용하고 싶다면 템플릿을 변경해서 사용하세요 
+# [[USER]] : -u {유저명}
+# [[PASS]] : -p {패스워드}
+
+OS_USER=[[USER]]
+DB_NAME=wp_[[USER]]
+DB_USER=[[USER]]_www
+DB_PASS=[[USER]]@#[[PASS]]
+PRIVATEKEY_PASS=[[USER]]@#[[PASS]]
+
